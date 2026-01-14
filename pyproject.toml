@@ -13,8 +13,9 @@ dev = [
 
 [project]
 name = "hypertic"
-version = "0.0.1"
-dynamic = ["description", "readme"]
+version = "0.0.2"
+description = "The fastest and easiest way to build AI agent applications"
+readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "Apache-2.0" }
 authors = [
@@ -116,8 +117,11 @@ all = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/hypertic-ai/test"
-Repository = "https://github.com/hypertic-ai/test"
+Homepage = "https://github.com/hypertic-ai/hypertic"
+Repository = "https://github.com/hypertic-ai/hypertic"
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/hypertic"]
