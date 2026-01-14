@@ -170,6 +170,8 @@ exclude = [
     "^dist/",
     "^.venv/",
     "^hypertic/tools/",
+    "^examples/",
+
 ]
 
 [[tool.mypy.overrides]]

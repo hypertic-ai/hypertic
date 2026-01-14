@@ -1,9 +1,9 @@
 <div align="center" style="margin: 0 auto; max-width: 80%;">
     <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="./static/logowhite.png">
-      <source media="(prefers-color-scheme: light)" srcset="./static/logoblack.png">
+      <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/hypertic-ai/hypertic/main/static/logowhite.png">
+      <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/hypertic-ai/hypertic/main/static/logoblack.png">
       <img 
-        src="./static/logoblack.png" 
+        src="https://raw.githubusercontent.com/hypertic-ai/hypertic/main/static/logoblack.png" 
         style="width: 300px; height: auto; margin: 20px auto;"
       >
     </picture>
