@@ -1,0 +1,236 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "mypy>=1.19.0",
+    "pytest>=9.0.1",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=7.0.0",
+    "ruff>=0.14.8",
+]
+
+[project]
+name = "hypertic"
+version = "0.0.1"
+dynamic = ["description", "readme"]
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [
+    { name = "prasad mahamulkar", email = "prsd.mahamulkar@gmail.com" }
+]
+classifiers = [
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: OS Independent",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+# Core dependencies
+dependencies = [
+    "pydantic>=2.0.0",
+    "aiohttp",
+    "requests",
+    "mcp>=1.0.0",
+    "PyPDF2",
+    "python-docx",
+    "striprtf",
+    "PyYAML",
+    "beautifulsoup4",
+]
+
+# Optional dependencies
+[project.optional-dependencies]
+openai = ["openai"]
+anthropic = ["anthropic"]
+cohere = ["cohere"]
+groq = ["groq"]
+mistral = ["mistralai"]
+google = ["google-genai"]
+
+embedders = [
+    "hypertic[openai]",
+    "hypertic[cohere]",
+    "hypertic[google]",
+    "hypertic[mistral]",
+    "huggingface_hub",
+    "sentence-transformers",
+]
+
+vectordb = [
+    "hypertic[chromadb]",
+    "hypertic[qdrant]",
+    "hypertic[pinecone]",
+    "hypertic[pgvector]",
+    "hypertic[mongodb]",
+]
+
+chromadb = ["chromadb"]
+qdrant = ["qdrant-client"]
+pinecone = ["pinecone"]
+pgvector = [
+    "sqlalchemy",
+    "pgvector",
+    "psycopg2-binary",
+    "asyncpg",
+]
+mongodb = ["pymongo", "motor"]
+
+memory = [
+    "hypertic[redis]",
+    "hypertic[postgres]",
+    "hypertic[mongodb]",
+]
+
+redis = ["redis"]
+postgres = [
+    "sqlalchemy",
+    "psycopg2-binary",
+    "asyncpg",
+    "pgvector",
+    "greenlet",
+]
+
+ddgs = ["ddgs"]
+
+models = [
+    "hypertic[openai]",
+    "hypertic[anthropic]",
+    "hypertic[cohere]",
+    "hypertic[groq]",
+    "hypertic[mistral]",
+    "hypertic[google]",
+]
+
+all = [
+    "hypertic[models]",
+    "hypertic[embedders]",
+    "hypertic[vectordb]",
+    "hypertic[memory]",
+]
+
+[project.urls]
+Homepage = "https://github.com/hypertic-ai/test"
+Repository = "https://github.com/hypertic-ai/test"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/hypertic"]
+
+[tool.ruff]
+line-length = 150
+target-version = "py39"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort (import sorting)
+    "N",   # pep8-naming
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+]
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+known-first-party = ["hypertic"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+ignore-var-parameters = true
+
+[tool.ruff.lint.per-file-ignores]
+"examples/**/*.py" = ["E501"]
+"__init__.py" = ["F401"]
+
+[tool.mypy]
+strict = true
+disallow_incomplete_defs = false
+disallow_untyped_defs = false
+disallow_untyped_calls = false
+python_version = "3.10"
+check_untyped_defs = true
+no_implicit_optional = true
+warn_unused_configs = true
+enable_error_code = ["deprecated"]
+exclude = [
+    "^tests/",
+    "^build/",
+    "^dist/",
+    "^.venv/",
+    "^hypertic/tools/",
+]
+
+[[tool.mypy.overrides]]
+module = [
+  "anthropic.*",
+  "openai.*",
+  "cohere.*",
+  "groq.*",
+  "mistralai.*",
+  "google.*",
+  "chromadb.*",
+  "pinecone.*",
+  "qdrant_client.*",
+  "pymongo.*",
+  "motor.*",
+  "redis.*",
+  "sqlalchemy.*",
+  "pgvector.*",
+  "huggingface_hub.*",
+  "sentence_transformers.*",
+  "yaml.*",
+  "striprtf.*",
+  "mcp.*",
+  "aiohttp.*",
+  "requests.*",
+  "bs4.*",
+  "beautifulsoup4.*",
+  "PyPDF2.*",
+  "docx.*",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+  "numpy.*",
+  "numpy",
+  "ddgs.*",
+  "ddgs",
+  "torch.*",
+  "torch",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "hypertic.models.anthropic.anthropic"
+ignore_errors = true
+
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+[tool.coverage.run]
+source = ["tests", "src/hypertic"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+show_missing = true
+sort = "-Cover"
