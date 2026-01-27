@@ -1,3 +1,3 @@
-from hypertic.agents.agent import Agent
+from hypertic.agents.agent import Agent, RunOptions
 
-__all__ = ["Agent"]
+__all__ = ["Agent", "RunOptions"]

@@ -88,3 +88,18 @@ class GuardrailViolationError(HyperticError):
         self.reason = reason
         self.violation_type = violation_type
         self.details = details or {}
+
+class ToolBlockedError(HyperticError):
+    """Tool execution blocked by tool_blocker configuration."""
+
+    def __init__(self, tool_name: str, blocked_tools: list[str]):
+        """Initialize tool blocked error.
+
+        Args:
+            tool_name: Name of the tool that was blocked
+            blocked_tools: List of all blocked tools
+        """
+        reason = f"Tool '{tool_name}' is blocked. Blocked tools: {', '.join(blocked_tools)}"
+        super().__init__(reason)
+        self.tool_name = tool_name
+        self.blocked_tools = blocked_tools

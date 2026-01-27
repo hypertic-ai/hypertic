@@ -4,6 +4,7 @@ import json
 import uuid
 from collections.abc import AsyncIterator, Iterator
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Optional, cast, get_origin, get_type_hints
 
 from pydantic import BaseModel, create_model
@@ -13,6 +14,7 @@ from hypertic.models.events import (
     MetadataEvent,
     StreamEvent,
 )
+from hypertic.skills.base import SkillLoader, SkillMetadata
 from hypertic.tools.base import BaseToolkit, _ToolManager
 from hypertic.tools.mcp.client import ExecutableTool
 from hypertic.utils.exceptions import (
@@ -21,6 +23,7 @@ from hypertic.utils.exceptions import (
     MaxStepsError,
     RetrieverError,
     SchemaConversionError,
+    ToolBlockedError,
     ToolExecutionError,
     ToolNotFoundError,
 )
@@ -28,6 +31,14 @@ from hypertic.utils.files import FileProcessor
 from hypertic.utils.log import get_logger
 
 logger = get_logger(__name__)
+
+@dataclass
+class RunOptions:
+    enabled_skills: list[str] | None = None
+
+    def __post_init__(self):
+        if self.enabled_skills is not None and not isinstance(self.enabled_skills, list):
+            raise ValueError("enabled_skills must be a list of strings or None")
 
 
 def _convert_to_pydantic(output_type: type[Any]) -> type[BaseModel]:
@@ -133,6 +144,8 @@ class Agent:
     retriever: Any | None = None
     memory: Any | None = None
     guardrails: list[Any] | None = None
+    tool_blocker: list[str] | None = None
+    skills: list[str | Any] | None = None
     handler: Any = field(default=None, init=False, repr=False)
     mcp_tools: list[Any] = field(default_factory=list, init=False, repr=False)
     function_tools: list[Any] = field(default_factory=list, init=False, repr=False)
@@ -140,6 +153,9 @@ class Agent:
     file_processor: FileProcessor = field(default_factory=FileProcessor, init=False, repr=False)
     _tool_outputs: dict[str, Any] = field(default_factory=dict, init=False, repr=False)
     _tool_calls: list[Any] = field(default_factory=list, init=False, repr=False)
+    _skills: dict[str, SkillMetadata] = field(default_factory=dict, init=False, repr=False)
+    _original_instructions: str | None = field(default=None, init=False, repr=False)
+    _original_tools: list[Any] = field(default_factory=list, init=False, repr=False)
 
     def __init__(
         self,
@@ -153,6 +169,8 @@ class Agent:
         retriever: Any | None = None,
         memory: Any | None = None,
         guardrails: list[Any] | None = None,
+        tool_blocker: list[str] | None = None,
+        skills: list[str | Any] | None = None,
     ):
         self.model = model
         self.instructions = instructions
@@ -163,6 +181,8 @@ class Agent:
         self.retriever = retriever
         self.memory = memory
         self.guardrails = guardrails or []
+        self.tool_blocker = tool_blocker or []
+        self.skills = skills
 
         self.handler = None
         self.mcp_tools = []
@@ -171,6 +191,15 @@ class Agent:
         self.file_processor = FileProcessor()
         self._tool_outputs = {}
         self._tool_calls = []
+        self._skills = {}
+        self._original_instructions = instructions
+        if tools is None:
+            self._original_tools = []
+        else:
+            try:
+                self._original_tools = list(tools)
+            except TypeError:
+                self._original_tools = [tools]
 
         self._initialize()
 
@@ -188,6 +217,9 @@ class Agent:
 
         self._separate_tool_types()
 
+        # Load skills (metadata only, Level 1)
+        self._load_skills()
+
         if self.function_tools:
             self._tool_manager = _ToolManager(self.function_tools)
         else:
@@ -199,6 +231,82 @@ class Agent:
                 _convert_to_pydantic(self.output_type)
             except Exception as e:
                 raise SchemaConversionError(f"Structured output not supported for {provider_name}: {e}") from e
+
+    def _load_skills(self) -> None:
+        """Load skills at init (metadata only, Level 1)."""
+        if not self.skills:
+            return
+
+        for skill_input in self.skills:
+            try:
+                if isinstance(skill_input, (str, Path)):
+                    # Load from filesystem (string path or Path object)
+                    skill = SkillLoader.load_skill(skill_input, load_full=False)
+                else:
+                    logger.warning(
+                        f"Invalid skill type: {type(skill_input)}. Skills must be filesystem paths (str or Path)."
+                    )
+                    continue
+
+                self._skills[skill.name] = skill
+                logger.debug(f"Loaded skill (metadata): {skill.name}")
+            except Exception as e:
+                logger.warning(f"Failed to load skill {skill_input}: {e}")
+
+    def _activate_skills(self, enabled_skills: list[str] | None) -> None:
+        """
+        Activate skills for runtime (load full content, Level 2+).
+
+        Args:
+            enabled_skills: List of skill names to activate
+        """
+        if not enabled_skills:
+            return
+
+        # Reset to original state
+        self.instructions = self._original_instructions
+        self.tools = self._original_tools.copy() if self._original_tools else []
+        self._separate_tool_types()
+
+        # Activate each enabled skill
+        skill_instructions = []
+        for skill_name in enabled_skills:
+            if skill_name not in self._skills:
+                logger.warning(f"Skill '{skill_name}' not found. Available skills: {list(self._skills.keys())}")
+                continue
+
+            skill = self._skills[skill_name]
+
+            # Load full content if not already loaded
+            if not skill.is_active():
+                if skill.path:
+                    # Reload with full content
+                    skill = SkillLoader.load_skill(skill.path, load_full=True)
+                    self._skills[skill_name] = skill
+
+            # Add instructions
+            if skill.instructions:
+                skill_instructions.append(f"## {skill.name}\n{skill.instructions}")
+
+            # Add tools
+            if skill.tools:
+                self.tools.extend(skill.tools)
+
+        # Merge skill instructions into agent instructions
+        if skill_instructions:
+            skill_instructions_text = "\n\n".join(skill_instructions)
+            if self.instructions:
+                self.instructions = f"{self.instructions}\n\n{skill_instructions_text}"
+            else:
+                self.instructions = skill_instructions_text
+
+        # Re-separate tool types after adding skill tools
+        if skill_instructions or any(skill.tools for skill in self._skills.values() if skill.is_active()):
+            self._separate_tool_types()
+            if self.function_tools:
+                self._tool_manager = _ToolManager(self.function_tools)
+            else:
+                self._tool_manager = None
 
     def _separate_tool_types(self):
         self.mcp_tools = []
@@ -453,6 +561,7 @@ class Agent:
         files: list[str] | None = None,
         user_id: str | None = None,
         session_id: str | None = None,
+        options: RunOptions | None = None,
     ) -> LLMResponse:
         """Asynchronous run method - industry standard approach.
 
@@ -461,6 +570,7 @@ class Agent:
             files: Optional list of file paths
             user_id: User identifier (required if session_id is provided, optional for long-term memory)
             session_id: Session identifier (requires user_id to be provided). Auto-generated if not provided.
+            options: Optional RunOptions for runtime configuration (e.g., enabled_skills)
 
         Returns:
             LLMResponse with the model's response
@@ -472,6 +582,10 @@ class Agent:
             - Only session_id (without user_id) → NOT ALLOWED (raises ValueError)
         """
         try:
+            # Activate skills if specified in options
+            if options and options.enabled_skills:
+                self._activate_skills(options.enabled_skills)
+
             query = await self._avalidate_input(query, user_id=user_id, session_id=session_id)
 
             self._tool_calls = []
@@ -692,6 +806,9 @@ class Agent:
         user_id: str | None = None,
         session_id: str | None = None,
     ) -> str:
+        # Check if tool is blocked
+        self._check_tool_blocked(tool_name)
+
         if self.function_tools and self._tool_manager:
             try:
                 loop = asyncio.get_event_loop()
@@ -749,7 +866,7 @@ class Agent:
         tool_outputs: dict[str, Any] = {}
         for result in results:
             if isinstance(result, Exception):
-                if isinstance(result, ToolExecutionError | ToolNotFoundError):
+                if isinstance(result, (ToolExecutionError, ToolNotFoundError, ToolBlockedError)):
                     raise result
                 logger.error(f"Unexpected error during tool execution: {result}", exc_info=True)
                 raise ToolExecutionError(f"Unexpected error during tool execution: {result}") from result
@@ -913,6 +1030,7 @@ class Agent:
         files: list[str] | None = None,
         user_id: str | None = None,
         session_id: str | None = None,
+        options: RunOptions | None = None,
     ) -> LLMResponse:
         """Synchronous run method - industry standard approach.
 
@@ -921,6 +1039,7 @@ class Agent:
             files: Optional list of file paths
             user_id: User identifier (required if session_id is provided, optional for long-term memory)
             session_id: Session identifier (requires user_id to be provided). Auto-generated if not provided.
+            options: Optional RunOptions for runtime configuration (e.g., enabled_skills)
 
         Returns:
             LLMResponse with content and metadata
@@ -931,6 +1050,10 @@ class Agent:
             - If only user_id is provided (no session_id) → long-term memory (all user messages)
             - Only session_id (without user_id) → NOT ALLOWED (raises ValueError)
         """
+        # Activate skills if specified in options
+        if options and options.enabled_skills:
+            self._activate_skills(options.enabled_skills)
+
         query = self._validate_input(query, user_id=user_id, session_id=session_id)
 
         self._tool_calls = []
@@ -1139,6 +1262,18 @@ class Agent:
 
         yield from self._handle_streaming_with_tools(messages, openai_tools, memory_messages=memory_messages)
 
+    def _check_tool_blocked(self, tool_name: str) -> None:
+        """Check if a tool is blocked by tool_blocker configuration.
+
+        Args:
+            tool_name: Name of the tool to check
+
+        Raises:
+            ToolBlockedError: If the tool is in the blocked list
+        """
+        if self.tool_blocker and tool_name in self.tool_blocker:
+            raise ToolBlockedError(tool_name, self.tool_blocker)
+
     def _execute_tool(
         self,
         tool_name: str,
@@ -1146,6 +1281,9 @@ class Agent:
         user_id: str | None = None,
         session_id: str | None = None,
     ) -> str:
+        # Check if tool is blocked
+        self._check_tool_blocked(tool_name)
+
         if self.function_tools and self._tool_manager:
             try:
                 result: str = str(self._tool_manager.execute_tool(tool_name, arguments))
@@ -1202,7 +1340,7 @@ class Agent:
         tool_outputs = {}
         for result in results:
             if isinstance(result, Exception):
-                if isinstance(result, ToolExecutionError | ToolNotFoundError):
+                if isinstance(result, (ToolExecutionError, ToolNotFoundError, ToolBlockedError)):
                     raise result
                 logger.error(f"Unexpected error during tool execution: {result}", exc_info=True)
                 raise ToolExecutionError(f"Unexpected error during tool execution: {result}") from result

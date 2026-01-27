@@ -109,6 +109,22 @@ class Anthropic(Base):
 
         return response_format, False
 
+    def _extract_system_messages(self, messages: list[dict[str, Any]]) -> tuple[str | None, list[dict[str, Any]]]:
+        system_content = None
+        filtered_messages = []
+
+        for msg in messages:
+            if msg.get("role") == "system":
+                content = msg.get("content", "")
+                if system_content:
+                    system_content = f"{system_content}\n\n{content}"
+                else:
+                    system_content = content
+            else:
+                filtered_messages.append(msg)
+
+        return system_content, filtered_messages
+
     async def ahandle_non_streaming(
         self,
         model: Any,
@@ -117,8 +133,10 @@ class Anthropic(Base):
         tool_executor: Any,
         response_format: Any | None = None,
     ) -> Any | None:
+        system_content, filtered_messages = self._extract_system_messages(messages)
+
         processed_messages = []
-        for msg in messages:
+        for msg in filtered_messages:
             formatted_msg = self._format_files_for_anthropic(msg.copy())
             processed_messages.append(formatted_msg)
 
@@ -128,6 +146,9 @@ class Anthropic(Base):
             "messages": processed_messages,
             "max_tokens": max_tokens,
         }
+
+        if system_content:
+            request_params["system"] = system_content
         if self.temperature is not None:
             request_params["temperature"] = self.temperature
         if self.top_p is not None:
@@ -377,8 +398,10 @@ class Anthropic(Base):
         content_blocks: list[dict[str, Any]] = []
         current_tool_use = None
 
+        system_content, filtered_messages = self._extract_system_messages(messages)
+
         processed_messages = []
-        for msg in messages:
+        for msg in filtered_messages:
             formatted_msg = self._format_files_for_anthropic(msg.copy())
             processed_messages.append(formatted_msg)
 
@@ -388,6 +411,9 @@ class Anthropic(Base):
             "messages": processed_messages,
             "max_tokens": max_tokens,
         }
+
+        if system_content:
+            request_params["system"] = system_content
         if self.temperature is not None:
             request_params["temperature"] = self.temperature
         if self.top_p is not None:
@@ -709,8 +735,10 @@ class Anthropic(Base):
         tool_executor: Any,
         response_format: Any | None = None,
     ) -> Any | None:
+        system_content, filtered_messages = self._extract_system_messages(messages)
+
         processed_messages = []
-        for msg in messages:
+        for msg in filtered_messages:
             formatted_msg = self._format_files_for_anthropic(msg.copy())
             processed_messages.append(formatted_msg)
 
@@ -720,6 +748,10 @@ class Anthropic(Base):
             "messages": processed_messages,
             "max_tokens": max_tokens,
         }
+
+        if system_content:
+            request_params["system"] = system_content
+
         if self.temperature is not None:
             request_params["temperature"] = self.temperature
         if self.top_p is not None:
@@ -982,8 +1014,10 @@ class Anthropic(Base):
         content_blocks: list[dict[str, Any]] = []
         current_tool_use = None
 
+        system_content, filtered_messages = self._extract_system_messages(messages)
+
         processed_messages = []
-        for msg in messages:
+        for msg in filtered_messages:
             formatted_msg = self._format_files_for_anthropic(msg.copy())
             processed_messages.append(formatted_msg)
 
@@ -993,6 +1027,9 @@ class Anthropic(Base):
             "messages": processed_messages,
             "max_tokens": max_tokens,
         }
+
+        if system_content:
+            request_params["system"] = system_content
         if self.temperature is not None:
             request_params["temperature"] = self.temperature
         if self.top_p is not None:
