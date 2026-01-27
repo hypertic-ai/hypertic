@@ -89,6 +89,7 @@ class GuardrailViolationError(HyperticError):
         self.violation_type = violation_type
         self.details = details or {}
 
+
 class ToolBlockedError(HyperticError):
     """Tool execution blocked by tool_blocker configuration."""
 

@@ -32,6 +32,7 @@ from hypertic.utils.log import get_logger
 
 logger = get_logger(__name__)
 
+
 @dataclass
 class RunOptions:
     enabled_skills: list[str] | None = None
@@ -243,9 +244,7 @@ class Agent:
                     # Load from filesystem (string path or Path object)
                     skill = SkillLoader.load_skill(skill_input, load_full=False)
                 else:
-                    logger.warning(
-                        f"Invalid skill type: {type(skill_input)}. Skills must be filesystem paths (str or Path)."
-                    )
+                    logger.warning(f"Invalid skill type: {type(skill_input)}. Skills must be filesystem paths (str or Path).")
                     continue
 
                 self._skills[skill.name] = skill

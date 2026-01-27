@@ -99,10 +99,7 @@ class SkillLoader:
                             if attr_name.startswith("_"):
                                 continue
                             attr = getattr(module, attr_name)
-                            if hasattr(attr, "_tool_metadata") or (
-                                hasattr(attr, "__class__")
-                                and "BaseToolkit" in str(attr.__class__.__bases__)
-                            ):
+                            if hasattr(attr, "_tool_metadata") or (hasattr(attr, "__class__") and "BaseToolkit" in str(attr.__class__.__bases__)):
                                 tools.append(attr)
                         metadata.tools = tools
                 except Exception as e:
