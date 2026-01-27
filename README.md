@@ -43,9 +43,9 @@ pip install hypertic
 For specific model providers, install the corresponding packages:
 
 ```bash
-pip install openai          # For OpenAI
-pip install anthropic       # For Anthropic
-pip install google-genai    # For Google Gemini
+pip install hypertic[openai]          # For OpenAI
+pip install hypertic[anthropic]       # For Anthropic
+pip install hypertic[google-genai]    # For Google Gemini
 ```
 
 ### uv
@@ -72,8 +72,9 @@ uv add google-genai    # For Google Gemini
 Use `run()` for synchronous, non-streaming responses. This returns the complete response after the agent finishes processing:
 
 ```python
-from hypertic import Agent, tool
-from openai import OpenAI
+from hypertic.agents import Agent
+from hypertic.models import OpenAIChat
+from hypertic.tools import tool
 
 # Define a tool
 @tool
@@ -82,7 +83,7 @@ def get_weather(city: str) -> str:
     return f"Sunny, 72°F in {city}"
 
 # Create agent
-model = OpenAI(model="gpt-4")
+model = OpenAIChat(model="gpt-4")
 agent = Agent(
     model=model,
     tools=[get_weather],
@@ -99,15 +100,18 @@ print(response.content)
 Use `stream()` for synchronous streaming. This yields events in real-time as the agent generates responses, improving user experience for longer outputs:
 
 ```python
-from hypertic import Agent, tool
-from openai import OpenAI
+from hypertic.agents import Agent
+from hypertic.models import OpenAIChat
+from hypertic.tools import tool
 
+# Define a tool
 @tool
 def get_weather(city: str) -> str:
     """Get weather for a given city."""
     return f"Sunny, 72°F in {city}"
 
-model = OpenAI(model="gpt-4")
+# Create agent
+model = OpenAIChat(model="gpt-4")
 agent = Agent(
     model=model,
     tools=[get_weather],
@@ -126,15 +130,18 @@ Use `arun()` for asynchronous, non-streaming responses. This is ideal for concur
 
 ```python
 import asyncio
-from hypertic import Agent, tool
-from openai import OpenAI
+from hypertic.agents import Agent
+from hypertic.models import OpenAIChat
+from hypertic.tools import tool
 
+# Define a tool
 @tool
 def get_weather(city: str) -> str:
     """Get weather for a given city."""
     return f"Sunny, 72°F in {city}"
 
-model = OpenAI(model="gpt-4")
+# Create agent
+model = OpenAIChat(model="gpt-4")
 agent = Agent(
     model=model,
     tools=[get_weather],
@@ -154,15 +161,18 @@ Use `astream()` for asynchronous streaming. This combines the benefits of async 
 
 ```python
 import asyncio
-from hypertic import Agent, tool
-from openai import OpenAI
+from hypertic.agents import Agent
+from hypertic.models import OpenAIChat
+from hypertic.tools import tool
 
+# Define a tool
 @tool
 def get_weather(city: str) -> str:
     """Get weather for a given city."""
     return f"Sunny, 72°F in {city}"
 
-model = OpenAI(model="gpt-4")
+# Create agent
+model = OpenAIChat(model="gpt-4")
 agent = Agent(
     model=model,
     tools=[get_weather],
