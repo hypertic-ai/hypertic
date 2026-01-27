@@ -651,6 +651,7 @@ class Agent:
         files: list[str] | None = None,
         user_id: str | None = None,
         session_id: str | None = None,
+        options: RunOptions | None = None,
     ) -> AsyncIterator[StreamEvent]:
         """Asynchronous streaming run method - industry standard approach.
 
@@ -659,6 +660,7 @@ class Agent:
             files: Optional list of file paths
             user_id: User identifier (required if session_id is provided, optional for long-term memory)
             session_id: Session identifier (requires user_id to be provided). Auto-generated if not provided.
+            options: Optional RunOptions for runtime configuration (e.g., enabled_skills)
 
         Note:
             Memory behavior:
@@ -667,6 +669,9 @@ class Agent:
             - Only session_id (without user_id) → NOT ALLOWED (raises ValueError)
         """
         try:
+            if options and options.enabled_skills:
+                self._activate_skills(options.enabled_skills)
+
             memory_messages = await self._aload_memory_context(
                 user_id=user_id,
                 session_id=session_id,
@@ -1118,6 +1123,7 @@ class Agent:
         files: list[str] | None = None,
         user_id: str | None = None,
         session_id: str | None = None,
+        options: RunOptions | None = None,
     ) -> Iterator[StreamEvent]:
         """Synchronous streaming run method - industry standard approach.
 
@@ -1126,13 +1132,17 @@ class Agent:
             files: Optional list of file paths
             user_id: User identifier (required if session_id is provided, optional for long-term memory)
             session_id: Session identifier (requires user_id to be provided). Auto-generated if not provided.
-
+            options: Optional RunOptions for runtime configuration (e.g., enabled_skills)
         Note:
             Memory behavior:
             - If session_id is provided → user_id is REQUIRED (short-term memory, session-specific)
             - If only user_id is provided (no session_id) → long-term memory (all user messages)
             - Only session_id (without user_id) → NOT ALLOWED (raises ValueError)
         """
+        # Activate skills if specified in options
+        if options and options.enabled_skills:
+            self._activate_skills(options.enabled_skills)
+
         memory_messages = self._load_memory_context(
             user_id=user_id,
             session_id=session_id,
