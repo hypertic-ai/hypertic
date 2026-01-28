@@ -1,0 +1,33 @@
+{
+  "income_statement": {
+    "revenue": 1000000,
+    "cost_of_goods_sold": 600000,
+    "operating_expenses": 200000,
+    "interest_expense": 50000,
+    "tax_expense": 30000,
+    "net_income": 120000
+  },
+  "balance_sheet": {
+    "cash": 150000,
+    "accounts_receivable": 200000,
+    "inventory": 150000,
+    "current_assets": 500000,
+    "total_assets": 2000000,
+    "current_liabilities": 250000,
+    "long_term_debt": 500000,
+    "total_liabilities": 750000,
+    "shareholders_equity": 1250000,
+    "total_liabilities_and_equity": 2000000
+  },
+  "cash_flow": {
+    "operating_cash_flow": 180000,
+    "investing_cash_flow": -50000,
+    "financing_cash_flow": -30000,
+    "net_cash_flow": 100000
+  },
+  "market_data": {
+    "stock_price": 50.0,
+    "shares_outstanding": 100000,
+    "dividends_paid": 50000
+  }
+}
